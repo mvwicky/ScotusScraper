@@ -12,7 +12,7 @@ except NameError:
 
 
 class Downloader(QThread):
-    '''downloads the requested documents'''
+    """downloads the requested documents"""
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
         self.exiting = False
@@ -23,12 +23,13 @@ class Downloader(QThread):
         self.wait()
 
     def __call__(self, arg):
-        '''arg: a list of tuples consisting of a url and a filename'''
+        """arg: a list of tuples consisting of a url and a filename"""
         self.arg = arg
         self.exiting = False
         self.start()
 
     def run(self):
+        """ get the file using requests, download"""
         self.emit(
             SIGNAL('output(QString)'),
             QString('Starting download of {} files'.format(len(self.arg))))

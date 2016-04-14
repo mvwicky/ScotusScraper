@@ -8,7 +8,7 @@ except NameError:
 
 
 class DocDialog(QDialog):
-    '''shows a dialog allowing the user to choose which documents to fetch'''
+    """shows a dialog allowing the user to choose which documents to fetch"""
     def __init__(self, parent=None):
         QDialog.__init__(self, parent)
         self.init_ui()
