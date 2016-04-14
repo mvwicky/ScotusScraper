@@ -19,31 +19,34 @@ try:
 except NameError:
     QString = str
 
+
 class ScotusScraper(QMainWindow):
-    ''' the main class that runs the entire program
+    """ the main class that runs the entire program
         - member variables (non-inherited):
-            - dim: the dimensions of the window 
+            - dim: the dimensions of the window
             - base_url: the url of the supreme court website
-            - trans_base: where to find argument transcripts 
+            - trans_base: where to find argument transcripts
             - save_dir: the base directory where files are saved
             - downloader: thread to download files
-            - log_name: the name of the log file 
-            - con: on screen console 
-    '''
+            - log_name: the name of the log file
+            - con: on screen console
+    """
     def __init__(self, parent=None):
         QMainWindow.__init__(self, parent)
         self.dim = (850, 500)
 
-        self.base_url = 'http://supremecourt.gov/' 
+        self.base_url = 'http://supremecourt.gov/'
         self.trans_base = '{}oral_arguments/'.format(self.base_url)
         self.save_dir = '{}\\SCOTUS\\'.format(os.getcwd())
 
-        self.downloader = Downloader() 
-        self.connect(self.downloader, SIGNAL('output(QString)'), self.send_message)
+        self.downloader = Downloader()
+        self.connect(self.downloader,
+                     SIGNAL('output(QString)'),
+                     self.send_message)
 
         script_name = (sys.argv[0].split('\\')[-1]).replace('.py', '.log')
         log_dir = '{}\\logs\\'.format(os.getcwd())
-        self.log_name = '{}{}'.format(log_dir,script_name)
+        self.log_name = '{}{}'.format(log_dir, script_name)
         if not os.path.exists(log_dir):
             try:
                 os.makedirs(log_dir)
@@ -54,19 +57,20 @@ class ScotusScraper(QMainWindow):
         self.con = QTextEdit(self)
 
         self.init_ui()
+
     def init_ui(self):
         self.setWindowTitle('Scotus Scraper')
         self.setWindowIcon(QIcon('Seal.png'))
         grid = QGridLayout()
 
-        self.con.setReadOnly(True) 
+        self.con.setReadOnly(True)
         self.con.setAcceptRichText(False)
 
         if not os.path.exists(self.save_dir):
             self.send_message('No save directory')
             try:
                 os.makedirs(self.save_dir)
-            except :
+            except:
                 self.send_message('Problem making save directory')
                 sys.exit(-1)
             else:
@@ -75,7 +79,8 @@ class ScotusScraper(QMainWindow):
 
         for year in range(2010, 2016):
             year_button = QPushButton(str(year), self)
-            year_button.connect(year_button, SIGNAL('clicked()'), 
+            year_button.connect(year_button,
+                                SIGNAL('clicked()'),
                                 self.year_button_press)
             grid.addWidget(year_button, grid.rowCount(), 0)
 
@@ -87,15 +92,24 @@ class ScotusScraper(QMainWindow):
         clean_button = QPushButton('Clean', self)
         clear_log_button = QPushButton('Clear Log File', self)
 
+        folder_button.connect(folder_button,
+                              SIGNAL('clicked()'),
+                              self.choose_save_folder)
+        clear_con_button.connect(clear_con_button,
+                                 SIGNAL('clicked()'),
+                                 self.clear_console)
+        cancel_button.connect(cancel_button,
+                              SIGNAL('clicked()'),
+                              self.cancel_download)
+        clean_button.connect(clean_button,
+                             SIGNAL('clicked()'),
+                             self.clean)
+        clear_log_button.connect(clear_log_button,
+                                 SIGNAL('clicked()'),
+                                 self.clear_log)
 
-        folder_button.connect(folder_button, SIGNAL('clicked()'), self.choose_save_folder)
-        clear_con_button.connect(clear_con_button, SIGNAL('clicked()'), self.clear_console)
-        cancel_button.connect(cancel_button, SIGNAL('clicked()'), self.cancel_download)
-        clean_button.connect(clean_button, SIGNAL('clicked()'), self.clean)
-        clear_log_button.connect(clear_log_button, SIGNAL('clicked()'), self.clear_log)
-
-        buttons = [ folder_button,clear_con_button, cancel_button,
-                    clean_button, clear_log_button ]
+        buttons = [folder_button, clear_con_button, cancel_button,
+                   clean_button, clear_log_button]
 
         for i, button in enumerate(buttons):
             grid.addWidget(button, r + (40 + i), 0)
