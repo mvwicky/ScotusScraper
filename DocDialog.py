@@ -6,11 +6,13 @@ try:
 except NameError:
     QString = str
 
+
 class DocDialog(QDialog):
     '''shows a dialog allowing the user to choose which documents to fetch'''
     def __init__(self, parent=None):
         QDialog.__init__(self, parent)
         self.init_ui()
+
     def init_ui(self):
         self.setWindowTitle(' ')
         self.setWindowIcon(QIcon('Seal.png'))
@@ -32,9 +34,11 @@ class DocDialog(QDialog):
         layout.addWidget(all_button)
 
         self.ret = 'Cancel'
+
     def accept(self):
         self.ret = self.sender().text()
         super(DocDialog, self).accept()
+
     @staticmethod
     def dec_ret(parent=None):
         dialog = DocDialog(parent)

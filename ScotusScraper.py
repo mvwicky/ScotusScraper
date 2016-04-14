@@ -43,6 +43,12 @@ class ScotusScraper(QMainWindow):
         self.connect(self.downloader,
                      SIGNAL('output(QString)'),
                      self.send_message)
+        self.connect(self.downloader,
+                     SIGNAL('output(int)'),
+                     self.update_download_progress)
+        self.connect(self.downloader,
+                     SIGNAL('total_files(int)'),
+                     self.set_total_files)
 
         script_name = (sys.argv[0].split('\\')[-1]).replace('.py', '.log')
         log_dir = '{}\\logs\\'.format(os.getcwd())
@@ -125,19 +131,22 @@ class ScotusScraper(QMainWindow):
         self.resize(*self.dim)
         self.center()
         self.send_message('Opening')
+        self.statusBar().showMessage('')
         self.show()
+
     def closeEvent(self, event):
         self.send_message('Closing')
         self.downloader.quit()
         event.accept()
+
     def center(self):
         qr = self.frameGeometry()
         cp = QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
+
     def send_message(self, msg: str):
         msg = str(msg)
-        self.statusBar().showMessage(msg)
         self.con.append('-> {}'.format(msg))
         sys.stdout.write('{}\n'.format(msg))
         sys.stdout.flush()
@@ -145,6 +154,7 @@ class ScotusScraper(QMainWindow):
         with open(self.log_name, 'a') as log:
             log.write('{} -> {}\n'.format(now, msg))
             log.flush()
+
     def clean(self):
         if os.path.exists(self.save_dir):
             if not os.listdir(self.save_dir):
@@ -158,34 +168,50 @@ class ScotusScraper(QMainWindow):
                         self.send_message('Deleted file: {}'.format(file_path))
                     elif os.path.isdir(file_path):
                         shutil.rmtree(file_path)
-                        self.send_message('Deleted folder: {}'.format(file_path))
+                        self.send_message('Deleted folder: {}'
+                                          .format(file_path))
                 except Exception as e:
-                    print(e)            
+                    print(e)
             if os.listdir(self.save_dir):
                 self.send_message('Problem cleaning {}'.format(self.save_dir))
         else:
             self.send_message('Directory not found: {}'.format(self.save_dir))
+
     def cancel_download(self):
         self.send_message('Stopping Download')
         self.downloader.exiting = True
+
     def clear_log(self):
         with open(self.log_name, 'w') as log:
             pass
         self.send_message('Log Cleared')
+
     def clear_console(self):
         self.send_message('Console Cleared')
         self.con.clear()
+
     def choose_save_folder(self):
-        new_dir = QFileDialog.getExistingDirectory(caption="Select Save Folder", options=QFileDialog.ShowDirsOnly)
+        new_dir = QFileDialog.getExistingDirectory(
+                    caption="Select Save Folder",
+                    options=QFileDialog.ShowDirsOnly)
         self.save_dir = '{}\\'.format(new_dir)
-        self.send_message('Save directory changed to: {}'.format(self.save_dir))
-    def update_download_progress(self, val: str):
-        msg = '[{}{}]'.format(('=' * val), ('  ' * (50 - val)))
-        self.statusBar().showMessage(msg)
-    def remove_not_allowed_chars(self, inp: str) -> str:
-        for c in ('<','>',':','"','/','\\','|','?','*'):
+        self.send_message('Save directory changed to: {}'
+                          .format(self.save_dir))
+
+    def set_total_files(self, val):
+        print('Total Files: {}'.format(val))
+        self.statusBar().showMessage('')
+        self.total_files = val
+
+    def update_download_progress(self, val):
+        m_val = int(val / 2 * self.width() // self.total_files)
+        msg = '[{}{}]'.format(('=' * m_val), (' ' * (self.width() - m_val)))
+
+    def remove_not_allowed_chars(self, inp):
+        for c in ('<', '>', ':', '"', '/', '\\', '|', '?', '*'):
             inp = inp.replace(c, '')
         return inp
+
     def year_button_press(self):
         year = self.sender().text()
         year_dir = '{}{}\\'.format(self.save_dir, year)
@@ -211,43 +237,51 @@ class ScotusScraper(QMainWindow):
             self.get_argument_audio(year)
             self.get_slip_opinions(year)
             self.get_argument_transcripts(year)
+
     def get_argument_audio(self, year):
         self.send_message('Getting argument audio')
-        audio = { 'media': '{}media/audio/mp3files/'.format(self.base_url), # url where media files are stored
-                  'dir': '{}{}\\Argument Audio\\'.format(self.save_dir, year),  # local directory to save the files
-                  'url': '{}oral_arguments/argument_audio/{}'.format(self.base_url, year), # specific url for this year
-                  'soup': '', 'links': [], 'dockets': [], 'names': [], 'filenames': [], 'urls': [], 
-                  'pairs': [] }  
+        audio = {'media': '{}media/audio/mp3files/'.format(self.base_url),
+                 'dir': '{}{}\\Argument Audio\\'.format(self.save_dir, year),
+                 'url': '{}oral_arguments/argument_audio/{}'
+                        .format(self.base_url, year),
+                 'soup': '', 'links': [], 'dockets': [], 'names': [],
+                 'filenames': [], 'urls': [], 'pairs': []}
         if not os.path.exists(audio['dir']):
             self.send_message('No directory for: {}'.format(audio['dir']))
-            try: 
+            try:
                 os.makedirs(audio['dir'])
             except:
                 self.send_message('Problem creating: {}'.format(audio['dir']))
                 return 0
             else:
                 self.send_message('Created: {}'.format(audio['dir']))
-        audio['soup'] = BeautifulSoup(urllib.request.urlopen(audio['url']), 'lxml')
+        res = requests.get(audio['url'])
+        audio['soup'] = BeautifulSoup(res.content, 'lxml')
         for row in audio['soup'].find_all('tr'):
             for a in row.find_all('a', class_=None):
                 if '../audio/' in a.get('href'):
-                    audio['links'].append(a.get('href')) # link is the href in the <a> tag
-                    audio['dockets'].append(a.string) # docket is the text inside the <a></a> block
-                    audio['names'].append(row.find('span').string) # case name is stored inside a span next to the <a>
-        audio['urls'] = ['{}{}.mp3'.format(audio['media'], i) for i in audio['dockets']]
+                    audio['links'].append(a.get('href'))
+                    audio['dockets'].append(a.string)
+                    audio['names'].append(row.find('span').string)
+        audio['urls'] = ['{}{}.mp3'.format(audio['media'], i)
+                         for i in audio['dockets']]
         for d, n in zip(audio['dockets'], audio['names']):
-            name = '{}'.format(self.remove_not_allowed_chars('{}-{}'.format(d, n)))
+            name = '{}'.format(self.remove_not_allowed_chars('{}-{}'
+                                                             .format(d, n)))
             filename = '{}{}.mp3'.format(audio['dir'], name)
             audio['filenames'].append(filename)
-        audio['pairs'] = [(i, j) for i, j in zip(audio['urls'], audio['filenames'])]
+        audio['pairs'] = [(i, j) for i, j in zip(audio['urls'],
+                                                 audio['filenames'])]
         self.downloader(audio['pairs'])
+
     def get_slip_opinions(self, year):
         self.send_message('Getting slip opinions')
         year_dir = '{}{}\\'.format(self.save_dir, year)
-        slip = { 'dir': '{}Slip Opinions\\'.format(year_dir), 
-                 'url': '{}opinions/slipopinion/{}'.format(self.base_url, str(int(year) - 2000)), 
-                 'soup': '', 'links': [], 'dockets': [], 'names': [], 'filenames': [],  'urls': [], 
-                 'pairs': [] }      
+        slip = {'dir': '{}Slip Opinions\\'.format(year_dir),
+                'url': '{}opinions/slipopinion/{}'
+                       .format(self.base_url, str(int(year) - 2000)),
+                'soup': '', 'links': [], 'dockets': [], 'names': [],
+                'filenames': [],  'urls': [], 'pairs': []}
         if not os.path.exists(slip['dir']):
             self.send_message('No directory for: {}'.format(slip['dir']))
             try:
@@ -257,50 +291,65 @@ class ScotusScraper(QMainWindow):
                 return 0
             else:
                 self.send_message('Created: {}'.format(slip['dir']))
-        slip['soup'] = BeautifulSoup(urllib.request.urlopen(slip['url']), 'lxml')
+        res = requests.get(slip['url'])
+        slip['soup'] = BeautifulSoup(res.content, 'lxml')
         for row in slip['soup'].find_all('tr'):
             for a in row.find_all('a'):
-                if '/opinions/{}pdf/'.format(str(int(year) - 2000)) in a.get('href'):
+                year_ten = str(int(year) - 2000)
+                if '/opinions/{}pdf/'.format(year_ten) in a.get('href'):
                     if ' v. ' in a.string:
                         slip['links'].append(a.get('href'))
                         slip['names'].append(a.string)
                         for cell in row.find_all('td')[2::10]:
-                            docket = cell.string.replace(', ', '-').replace('.', '')
+                            docket = cell.string
+                            docket = docket.replace(',', '-').replace('.', '')
                             slip['dockets'].append(docket)
-        slip['urls'] = ['http://supremecourt.gov{}'.format(i) for i in slip['links']]
+        slip['urls'] = ['http://supremecourt.gov{}'
+                        .format(i) for i in slip['links']]
         for d, n in zip(slip['dockets'], slip['names']):
-            name = '{}{}.pdf'.format(slip['dir'], self.remove_not_allowed_chars('{}-{}'.format(d, n)))
+            name = '{}{}.pdf'.format(
+                slip['dir'],
+                self.remove_not_allowed_chars('{}-{}'.format(d, n)))
             slip['filenames'].append(name)
-        slip['pairs'] = [(i, j) for i, j in zip(slip['urls'], slip['filenames'])]
+        slip['pairs'] = [(i, j) for i, j in zip(slip['urls'],
+                                                slip['filenames'])]
         self.downloader(slip['pairs'])
+
     def get_argument_transcripts(self, year):
         self.send_message('Getting argument transcripts for {}'.format(year))
-        trans = { 'dir': '{}{}\\Argument Transcripts\\'.format(self.save_dir, year),
-                  'url': '{}oral_arguments/argument_transcript/{}'.format(self.base_url, year),
-                  'soup': '', 'links': [], 'dockets': [],'names': [], 'filenames': [], 'pairs': [] }
+        trans = {'dir': '{}{}\\Argument Transcripts\\'
+                        .format(self.save_dir, year),
+                 'url': '{}oral_arguments/argument_transcript/{}'
+                        .format(self.base_url, year),
+                 'soup': '', 'links': [], 'dockets': [], 'names': [],
+                 'filenames': [], 'pairs': []}
         if not os.path.exists(trans['dir']):
             self.send_message('No directory for: {}'.format(trans['dir']))
             try:
                 os.makedirs(trans['dir'])
             except:
                 self.send_message('Problem creating: {}'.format(trans['dir']))
-                return 0 
+                return 0
             else:
                 self.send_message('Created: {}'.format(trans['dir']))
         trans_url = '{}argument_transcript/{}'.format(self.trans_base, year)
-        trans['soup'] = BeautifulSoup(urllib.request.urlopen(trans_url), 'lxml')
+        res = requests.get(trans_url)
+        trans['soup'] = BeautifulSoup(res.content, 'lxml')
         for cell in trans['soup'].find_all('td'):
             for a in cell.find_all('a'):
                 if 'argument_transcripts' in a.get('href'):
                     link = a.get('href').replace('../', '')
-                    docket = (link.replace('argument_transcripts/', '')).replace('.pdf', '')
+                    docket = (link.replace('argument_transcripts/', ''))
+                    docket = docket.replace('.pdf', '')
                     trans['dockets'].append(docket)
                     link = '{}{}'.format(self.trans_base, link)
                     trans['links'].append(link)
                     name = cell.find('span').string
                     trans['names'].append(name)
-                    file_name = '{}{}{}'.format(trans['dir'], 
-                                self.remove_not_allowed_chars('{}-{}'.format(docket, name)), '.pdf')
+                    file_name = '{}{}.pdf'.format(
+                        trans['dir'],
+                        self.remove_not_allowed_chars('{}-{}'.format(docket,
+                                                                     name)))
                     trans['filenames'].append(file_name)
                     trans['pairs'].append((link, file_name))
         self.downloader(trans['pairs'])
@@ -312,4 +361,4 @@ def main():
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
-    main() 
+    main()
