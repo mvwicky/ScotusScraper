@@ -66,7 +66,7 @@ class ScotusScraper(QMainWindow):
             self.send_message('No save directory')
             try:
                 os.makedirs(self.save_dir)
-            except :
+            except:
                 self.send_message('Problem making save directory')
                 sys.exit(-1)
             else:
