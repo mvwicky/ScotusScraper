@@ -13,7 +13,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 from doc_dialog import DocDialog
-from downloader import Downloader
+from download_tools import Downloader
 from logger import Logger
 
 try:
@@ -283,7 +283,7 @@ class ScotusScraper(QMainWindow):
             if op_path in a.get('href'):
                 if ' v. ' in a.string:
                     link = a.get('href')
-                    for cell in row('td')[2::10]:
+                    for cell in soup('td')[2::10]:
                         docket = cell.string.replace(',', '-').replace('.', '')
                     url = '{}{}'.format(self.base_url, link)
                     name = self.fmt_name('{}-{}.pdf'.format(docket, a.string))

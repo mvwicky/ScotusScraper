@@ -16,12 +16,14 @@ class Logger(object):
         year = datetime.today().year
         month = datetime.today().month
         day = datetime.today().day
-        today = '{}-{}-{}'.format(year, month, day)
+        today = '-'.join(map(str, [year, month, day]))
 
         if attr:  # use just script name
-            log_name = '{}_{}_{}.log'.format(name, attr, today)
+            log_name = '_'.join([name, attr, today])
         else:  # use script name and supplied attr
-            log_name = '{}_{}.log'.format(name, today)
+            log_name = '_'.join([name, today])
+
+        log_name = '.'.join([log_name, 'log'])
 
         if save_dir:
             self.log_path = os.path.abspath(save_dir)
@@ -45,18 +47,20 @@ class Logger(object):
             exitCode: the exit code to emit, unused if not exiting
         """
         msg = str(msg)
-        sys.stdout.write('{}\n'.format(msg))
+        sys.stdout.write(''.join([msg, '\n']))
         sys.stdout.flush()
         now = datetime.now().strftime("%X")
         with open(self.log_path, 'a') as log:
-            log.write('{} -> {}\n'.format(now, msg))
+            log.write(' -> '.join([now, msg]))
+            log.write('\n')
             log.flush()
         if ex:
             exitMessage = 'Exiting with code: {}'.format(exitCode)
-            sys.stdout.write('{}\n'.format(exitMessage))
+            sys.stdout.write(''.join([exitMessage, '\n']))
             sys.stdout.flush()
             with open(self.log_path, 'a') as log:
-                log.write('{} -> {}\n'.format(now, exitMessage))
+                log.write(' -> '.join([now, exitMessage]))
+                log.write('\n')
                 log.flush()
             sys.exit(exitCode)
 
