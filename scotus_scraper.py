@@ -1,3 +1,5 @@
+#!/cygdrive/c/Anaconda3/python.exe
+
 import os
 import sys
 import shutil

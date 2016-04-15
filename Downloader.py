@@ -48,11 +48,11 @@ class Downloader(QThread):
                       QString('File {} already exists, skipping'
                               .format(arg[1])))
             return 0
+        res = requests.get(arg[0], stream=True)
+        self.emit(SIGNAL('output(QString)'), QString('Downloading: {}'
+                                                     .format(res.url)))
+        self.emit(SIGNAL('output(int)'), i+1)
         with open(arg[1], 'wb') as f:
-            res = requests.get(arg[0], stream=True)
-            self.emit(SIGNAL('output(QString)'), QString('Downloading: {}'
-                                                         .format(arg[0])))
-            self.emit(SIGNAL('output(int)'), i+1)
             if res.headers.get('content-length') is None:
                 f.write(res.content)
             else:
@@ -70,8 +70,8 @@ class Downloader(QThread):
             SIGNAL('output(QString)'),
             QString('Starting download of {} files'.format(len(self.arg))))
         self.emit(SIGNAL('total_files(int)'), len(self.arg))
-        with mp.Pool(4) as pool:
-            pool.map(self.download, self.arg)
+        for arg in self.arg:
+            self.download(arg)
         self.emit(SIGNAL('output(QString)'),
                   QString('Download of {} files completed'
                           .format(len(self.arg))))
