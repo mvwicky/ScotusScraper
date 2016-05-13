@@ -67,7 +67,7 @@ class Downloader(QThread):
                  for _ in range(self.nprocs)]
 
         for proc in procs:
-            proc.daemon = True
+            proc.daemon = False
             proc.start()
 
         sent = [in_queue.put((i, x)) for i, x in enumerate(self.arg)]

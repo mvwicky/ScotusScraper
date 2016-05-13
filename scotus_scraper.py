@@ -231,7 +231,7 @@ class ScotusScraper(QMainWindow):
             self.get_argument_transcripts(year)
 
     def get_argument_audio(self, year):
-        self.send_message('Getting argument audio')
+        self.send_message('Getting argument audio for {}'.format(year))
         audio = {'media': '{}media/audio/mp3files/'.format(self.base_url),
                  'dir': os.path.join(self.save_dir, year, 'Argument Audio'),
                  'url': '{}oral_arguments/argument_audio/{}'
@@ -263,7 +263,7 @@ class ScotusScraper(QMainWindow):
 
     def get_slip_opinions(self, year):
         year = int(year)
-        self.send_message('Getting slip opinions')
+        self.send_message('Getting slip opinions for {}'.format(year))
         slip = {'dir': os.path.join(self.save_dir, str(year), 'Slip Opinions'),
                 'url': '{}opinions/slipopinion/{}'
                        .format(self.base_url, str(year-2000))}
