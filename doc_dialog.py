@@ -20,7 +20,7 @@ class DocDialog(QDialog):
 
         audio_button = QPushButton('Argument Audio', self)
         slip_button = QPushButton('Slip Opinions', self)
-        trans_button = QPushButton('Argument Transcript', self)
+        trans_button = QPushButton('Argument Transcripts', self)
         all_button = QPushButton('All', self)
 
         audio_button.connect(audio_button, SIGNAL('clicked()'), self.accept)

@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 from datetime import datetime
 
@@ -13,11 +13,17 @@ class Logger(object):
            save_dir: folder name to save in
            ovrw: whether or not to overwrite and existing file
         """
-        [name, save_dir] = map(str, [name, save_dir])
+        name = str(name)
 
-        today = '-'.join(map(str, [datetime.today().year,
-                                   datetime.today().month,
-                                   datetime.today().day]))
+        year, month, day = map(str, [datetime.today().year,
+                                     datetime.today().month,
+                                     datetime.today().day])
+        if len(month) == 1:
+            month = '0{}'.format(month)
+        if len(day) == 1:
+            day = '0{}'.format(day)
+
+        today = '-'.join([year, month, day])
 
         if attr:
             log_name = '_'.join([name, str(attr), today])
@@ -26,25 +32,28 @@ class Logger(object):
         log_name = ''.join([log_name, '.log'])
 
         if save_dir:
-            self.log_path = os.path.abspath(save_dir)
-            if not os.path.exists(self.log_path):
+            save_dir = str(save_dir)
+            log_path = os.path.realpath(save_dir)
+            if not os.path.exists(log_path):
                 try:
-                    os.makedirs(self.log_path)
+                    os.makedirs(log_path)
                 except:
-                    self.log_path = os.getcwd()
+                    print('Could not make log in {}, making it in cwd'
+                          .format(log_path))
+                    log_path = os.getcwd()
         else:
-            self.log_path = os.getcwd()
-        self.log_path = os.path.join(self.log_path, log_name)
+            log_path = os.getcwd()
+        self.log_path = os.path.join(log_path, log_name)
 
         if ovrw:
-            log = open(self.log_path, 'w')
-            log.close()
+            os.unlink(self.log_path)
+            self.__call__('Log Overwritten')
 
-    def __call__(self, msg, ex=False, exitCode=-1):
+    def __call__(self, msg, ex=False, exit_code=-1):
         """ writes to log file and stdout
             msg: message to log
             ex: whether or not to exit
-            exitCode: the exit code to emit, unused if not exiting
+            exit_code: the exit code to emit, unused if not exiting
         """
         msg = ''.join([str(msg), '\n'])
         sys.stdout.write(msg)
@@ -54,13 +63,13 @@ class Logger(object):
             log.write(' -> '.join([now, msg]))
             log.flush()
         if ex:
-            exitMessage = 'Exiting with code: {}\n'.format(exitCode)
-            sys.stdout.write(exitMessage)
+            exit_message = 'Exiting with code: {}\n'.format(exit_code)
+            sys.stdout.write(exit_message)
             sys.stdout.flush()
             with open(self.log_path, 'a') as log:
-                log.write(' -> '.join([now, exitMessage]))
+                log.write(' -> '.join([now, exit_message]))
                 log.flush()
-            sys.exit(exitCode)
+            sys.exit(exit_code)
 
 
 def main():

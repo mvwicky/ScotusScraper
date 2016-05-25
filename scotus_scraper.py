@@ -55,8 +55,6 @@ class ScotusScraper(QMainWindow):
 
         self.log = Logger('ScotusScraper', save_dir='logs')
 
-        script_name = (sys.argv[0].split(os.sep)[-1]).replace('.py', '.log')
-
         self.con = QTextEdit(self)
 
         self.init_ui()
@@ -184,9 +182,12 @@ class ScotusScraper(QMainWindow):
         new_dir = QFileDialog.getExistingDirectory(
                     caption="Select Save Folder",
                     options=QFileDialog.ShowDirsOnly)
-        self.save_dir = '{}\\'.format(new_dir)
-        self.send_message('Save directory changed to: {}'
-                          .format(self.save_dir))
+        if new_dir:
+            self.save_dir = '{}\\'.format(new_dir)
+            self.send_message('Save directory changed to: {}'
+                              .format(self.save_dir))
+        else:
+            self.send_message('Save directory not changed')
 
     def set_total_files(self, val):
         self.statusBar().showMessage('')
@@ -332,9 +333,6 @@ class ScotusScraper(QMainWindow):
                     file_name = self.fmt_name('{}-{}.pdf'.format(docket, name))
                     file_path = os.path.join(trans['dir'], file_name)
                     pairs.append((link, file_path))
-        for pair in pairs:
-            print(pair)
-        return -1
         self.downloader(pairs)
 
 
