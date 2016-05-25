@@ -196,12 +196,14 @@ class ScotusScraper(QMainWindow):
         msg = '{} of {} Downloaded'.format(val, self.total_files)
         self.statusBar().showMessage(msg)
 
-    def fmt_name(self, inp):
+    @staticmethod
+    def fmt_name(inp):
         not_allowed_chars = '<>:"/\\|?*'  # Explicity not allowed characters
         for char in not_allowed_chars:
             inp = inp.replace(char, '')
         for char in ', ':  # I personally don't want these
             inp = inp.replace(char, '')
+        inp = inp.replace('..', '.')
         return inp.replace('v.', '_v_')  # Make the vs. a little nicer
 
     def year_button_press(self):
@@ -246,18 +248,21 @@ class ScotusScraper(QMainWindow):
             else:
                 self.send_message('Created: {}'.format(audio['dir']))
         res = requests.get(audio['url'])
+        if res.status_code == 404:
+            self.send_message('Got 404 from {}'.format(audio['url']))
+            return -1
         soup = BeautifulSoup(res.content, 'lxml')
         pairs = []
+        link_search = '../audio/{year}/'.format(year=year)
         for rows in soup('tr'):
             for a in rows('a', class_=None):
-                if '../audio/' in a.get('href'):
+                if link_search in a.get('href'):
                     link = a.get('href')
                     docket = a.string
                     name = rows.find('span').string
                     name = self.fmt_name('{}-{}.mp3'.format(docket, name))
                     url = '{}{}.mp3'.format(audio['media'], docket)
                     file_path = os.path.join(audio['dir'], name)
-
                     pairs.append((url, file_path))
         self.downloader(pairs)
 
@@ -277,20 +282,24 @@ class ScotusScraper(QMainWindow):
             else:
                 self.send_message('Created: {}'.format(slip['dir']))
         res = requests.get(slip['url'])
-        soup = BeautifulSoup(res.content, 'lxml',
-                             parse_only=SoupStrainer('tr'))
+        table_filter = SoupStrainer('table',
+                                    class_='table table-bordered')
+        soup = BeautifulSoup(res.content, 'lxml', parse_only=table_filter)
         pairs = []
-        for a in soup('a'):
-            op_path = '/opinions/{}pdf/'.format(str(year-2000))
-            if op_path in a.get('href'):
-                if ' v. ' in a.string:
+        for rows in soup('tr'):
+            docket, name = None, None
+            for i, cell in enumerate(rows('td')):
+                if i == 2:
+                    docket = cell.string
+                if i == 3:
+                    a = cell.find('a')
                     link = a.get('href')
-                    for cell in soup('td')[2::10]:
-                        docket = cell.string.replace(',', '-').replace('.', '')
-                    url = '{}{}'.format(self.base_url, link)
-                    name = self.fmt_name('{}-{}.pdf'.format(docket, a.string))
-                    file_path = os.path.join(slip['dir'], name)
-                    pairs.append((url, file_path))
+                    url = ''.join([self.base_url, link])
+                    name = a.string
+            if docket and name:
+                file_name = self.fmt_name('{}-{}.pdf'.format(docket, name))
+                file_path = os.path.join(slip['dir'], file_name)
+                pairs.append((url, file_path))
         self.downloader(pairs)
 
     def get_argument_transcripts(self, year):
@@ -311,9 +320,10 @@ class ScotusScraper(QMainWindow):
         res = requests.get(trans['url'])
         soup = BeautifulSoup(res.content, 'lxml')
         pairs = []
+        link_search = '../argument_transcripts/'
         for cell in soup('td'):
             for a in cell('a'):
-                if 'argument_transcripts' in a.get('href'):
+                if link_search in a.get('href'):
                     link = a.get('href').replace('../', '')
                     docket = link.replace('argument_transcripts/', '')
                     docket = docket.replace('.pdf', '')
@@ -322,6 +332,9 @@ class ScotusScraper(QMainWindow):
                     file_name = self.fmt_name('{}-{}.pdf'.format(docket, name))
                     file_path = os.path.join(trans['dir'], file_name)
                     pairs.append((link, file_path))
+        for pair in pairs:
+            print(pair)
+        return -1
         self.downloader(pairs)
 
 
