@@ -1,10 +1,7 @@
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-try:
-    test = QString('Test')
-except NameError:
-    QString = str
+QString = str
 
 
 class DocDialog(QDialog):

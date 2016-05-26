@@ -1,7 +1,5 @@
 import os
 
-import multiprocessing as mp
-
 from multiprocessing import Queue, Process, cpu_count
 
 import requests
@@ -9,10 +7,9 @@ import requests
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-try:
-    test = QString('Test')
-except NameError:
-    QString = str
+from logger import Logger
+
+QString = str
 
 
 def download_func(func, q_in, q_out):
@@ -36,10 +33,12 @@ def download(arg):
 
 class Downloader(QThread):
     """downloads the requested documents"""
-    def __init__(self, nprocs=2, parent=None):
+    def __init__(self, name='Downloader', nprocs=2, log_dir='.', parent=None):
         QThread.__init__(self, parent)
-        self.exiting = False
+        self.name = name
         self.nprocs = nprocs
+        self.log = Logger(self.name, save_dir='logs')
+        self.exiting = False
         self.arg = None
 
     def __del__(self):
@@ -54,11 +53,10 @@ class Downloader(QThread):
 
     def download_par(self):
         if not self.arg:
-            self.emit(SIGNAL('output(QString)'), 'No arguments received')
+            self.log('No arguments received')
             return 0
         num_files = len(self.arg)
         start_msg = 'Starting download of {} files'.format(num_files)
-        self.emit(SIGNAL('output(QString)'), start_msg)
 
         in_queue = Queue(1)
         out_queue = Queue()
@@ -80,6 +78,8 @@ class Downloader(QThread):
 
     def run(self):
         self.download_par()
-        self.emit(SIGNAL('output(QString)'),
-                  QString('Download of {} files completed'
-                          .format(len(self.arg))))
+        self.log('Download of {} files completed'.format(len(self.arg)))
+
+
+if __name__ == '__main__':
+    pass

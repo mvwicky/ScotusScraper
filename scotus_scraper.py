@@ -4,7 +4,6 @@ import os
 import sys
 import shutil
 import datetime
-from urllib.parse import urljoin
 
 import multiprocessing as mp
 
@@ -15,13 +14,12 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 from doc_dialog import DocDialog
-from download_tools import Downloader
+from downloader import Downloader
 from logger import Logger
+from log_listener import LogListener
 
-try:
-    test = QString('Test')
-except NameError:
-    QString = str
+
+QString = str
 
 
 class ScotusScraper(QMainWindow):
@@ -34,24 +32,17 @@ class ScotusScraper(QMainWindow):
             - log_name: the name of the log file
             - con: on screen console
     """
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, nprocs=4):
         QMainWindow.__init__(self, parent)
         self.dim = (850, 500)
 
+        self.nprocs = nprocs
         self.base_url = 'http://supremecourt.gov/'
         self.trans_base = '{}oral_arguments/'.format(self.base_url)
         self.save_dir = os.path.abspath('SCOTUS')
 
-        self.downloader = Downloader()
-        self.connect(self.downloader,
-                     SIGNAL('output(QString)'),
-                     self.send_message)
-        self.connect(self.downloader,
-                     SIGNAL('output(int)'),
-                     self.update_download_progress)
-        self.connect(self.downloader,
-                     SIGNAL('total_files(int)'),
-                     self.set_total_files)
+        self.downloader_name = 'Scotus_Downloader'
+        self.log_dir = os.path.realpath('logs')
 
         self.log = Logger('ScotusScraper', save_dir='logs')
 
@@ -202,9 +193,9 @@ class ScotusScraper(QMainWindow):
         not_allowed_chars = '<>:"/\\|?*'  # Explicity not allowed characters
         for char in not_allowed_chars:
             inp = inp.replace(char, '')
-        for char in ', ':  # I personally don't want these
+        for char in ', ':  # I personally don't want these (spaces and commas)
             inp = inp.replace(char, '')
-        inp = inp.replace('..', '.')
+        inp = inp.replace('..', '.')  # looks weird
         return inp.replace('v.', '_v_')  # Make the vs. a little nicer
 
     def year_button_press(self):
@@ -265,7 +256,11 @@ class ScotusScraper(QMainWindow):
                     url = '{}{}.mp3'.format(audio['media'], docket)
                     file_path = os.path.join(audio['dir'], name)
                     pairs.append((url, file_path))
-        self.downloader(pairs)
+        Downloader(pairs,
+                   self.downloader_name,
+                   self.nprocs,
+                   self.log_dir,
+                   self)
 
     def get_slip_opinions(self, year):
         year = int(year)
@@ -338,7 +333,7 @@ class ScotusScraper(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    scraper = ScotusScraper()
+    scraper = ScotusScraper(None, 2)
     sys.exit(app.exec_())
 
 if __name__ == '__main__':

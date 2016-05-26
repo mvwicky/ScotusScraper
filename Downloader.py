@@ -7,77 +7,69 @@ import requests
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-try:
-    test = QString('Test')
-except NameError:
-    QString = str
+from logger import Logger
 
 
 class Downloader(QThread):
-    """downloads the requested documents"""
-    def __init__(self, parent=None):
+    def __init__(self,
+                 name='Downloader',
+                 nprocs=2,
+                 log_dir='.',
+                 parent=None):
         QThread.__init__(self, parent)
+        self.name = name
+        self.nprocs = nprocs
+        self.log = Logger(name, save_dir=log_dir)
         self.exiting = False
-        self.arg = None
-        self.queue = mp.Queue()
+        self.args = None
+        self.dl_queue = mp.Queue()
 
     def __del__(self):
         self.exiting = True
         self.wait()
 
-    def __call__(self, arg):
-        """arg: a list of tuples consisting of a url and a filename"""
-        self.arg = arg
-        self.exiting = False
-        self.start()
-
     def download(self):
-        """ get the file using requests, download"""
+        [self.dl_queue.put(None) for _ in range(self.nprocs)]
+        dl_procs = [mp.Process(target=self.download_func)
+                    for _ in range(self.nprocs)]
+
+        self.log('Starting {} downloads in {} threads'
+                 .format(len(self.args), self.nprocs))
+
+        for proc in dl_procs:
+            proc.start()
+
+        [proc.join() for proc in dl_procs]
+        return 0
+
+    def download_func(self):
         while True:
-            if self.exiting:
-                self.emit(SIGNAL('output(QString)'), 'Cancelling download')
-                return 0
-            if os.path.isfile(arg[1]):
-                self.emit(SIGNAL('output(QString)'),
-                          QString('File {} already exists, skipping'
-                                  .format(arg[1])))
-                continue
-            arg = self.queue.get()
+            arg = self.dl_queue.get()
             if arg is None:
                 break
-            res = requests.get(arg[0], stream=True)
-            self.emit(SIGNAL('output(QString)'), QString('Downloading: {}'
-                                                         .format(res.url)))
-            self.emit(SIGNAL('output(int)'), i+1)
-            with open(arg[1], 'wb') as f:
+            if self.exiting:
+                self.log('Download cancel requested')
+                return -1
+            url, dl_path = arg
+            with open(dl_path, 'wb') as file:
+                res = requests.get(url, stream=True)
                 if res.headers.get('content-length') is None:
-                    f.write(res.content)
+                    file.write(res.content)
                 else:
-                    total_length = float(res.headers.get('content-length'))
-                    fmt_len = '{}K'.format(total_length / 1000)
-                    len_msg = 'Total Length: {}'.format(fmt_len)
-                    self.emit(SIGNAL('output(QString)'), QString(len_msg))
                     for data in res.iter_content():
-                        f.write(data)
-                self.emit(SIGNAL('output(QString)'), QString('Saved to: {}'
-                                                             .format(arg[1])))
+                        file.write(data)
+            file_name = os.path.split(dl_path)[1]
+            self.log('{} written'.file_name)
 
     def run(self):
-        self.emit(
-            SIGNAL('output(QString)'),
-            QString('Starting download of {} files'.format(len(self.arg))))
-        self.emit(SIGNAL('total_files(int)'), len(self.arg))
+        self.download()
+        self.log('Download of {} files completed'.format(len(self.args)))
 
-        for arg in self.arg:
-            self.queue.put(arg)
-        nprocs = 4
-        procs = [mp.Process(target=self.download) for _ in range(nprocs)]
-        [self.queue.put(None) for _ in range(nprocs)]
 
-        for proc in procs:
-            proc.start()
-        [proc.join() for proc in procs]
-
-        self.emit(SIGNAL('output(QString)'),
-                  QString('Download of {} files completed'
-                          .format(len(self.arg))))
+if __name__ == '__main__':
+    pa = os.path.realpath('patch.png')
+    pa2 = os.path.realpath('bun.png')
+    args = [('http://imgs.xkcd.com/comics/patch.png', pa),
+            ('http://imgs.xkcd.com/comics/bun.png', pa2)]
+    dl = Downloader()
+    dl(args)

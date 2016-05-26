@@ -49,6 +49,9 @@ class Logger(object):
             os.unlink(self.log_path)
             self.__call__('Log Overwritten')
 
+    def name(self):
+        return os.path.split(self.log_path)[1]
+
     def __call__(self, msg, ex=False, exit_code=-1):
         """ writes to log file and stdout
             msg: message to log
